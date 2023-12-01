@@ -1,0 +1,6 @@
+resolver:
+  token:
+    type: distributed
+  route-acl:
+    type: distributed
+    uri: "http://auth-service"

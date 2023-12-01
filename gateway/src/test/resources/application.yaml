@@ -1,0 +1,6 @@
+resolver:
+  token:
+    type: distributed
+  route-acl:
+    type: distributed
+    uri: "http://localhost:9999/rest/api/v1"
