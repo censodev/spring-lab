@@ -1,17 +1,18 @@
 package com.example.gateway.resolver.routeacl;
 
+import com.example.gateway.service.AuthServiceClient;
+import com.example.gateway.service.payload.RouteAclRes;
+import com.example.gateway.service.payload.WrapperRes;
 import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
-import com.example.gateway.service.AuthServiceClient;
-import com.example.gateway.service.payload.PermissionRouterResponseVO;
-import com.example.gateway.service.payload.ResultVO;
-import com.example.gateway.service.payload.RouterAnonymousVO;
-import com.example.gateway.service.payload.RouterAuthorizedVO;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 public class DistributedRouteAclResolver implements RouteAclResolver {
@@ -24,15 +25,14 @@ public class DistributedRouteAclResolver implements RouteAclResolver {
     @Override
     public List<AuthorizedRequest> getAuthorizedRequests() {
         try {
-            ResultVO<PermissionRouterResponseVO> resultVO = authServiceClient.getPermissionRouter();
-            if (resultVO.getData().getAuthorizeds() != null) {
-                List<RouterAuthorizedVO> authorizedVOs = resultVO.getData().getAuthorizeds();
-                return authorizedVOs.stream()
-                        .map(pm -> new AuthorizedRequest(pm.getEndpoint(),
-                                extractHttpMethods(pm.getMethods() != null ? Arrays.asList(pm.getMethods())
-                                        : Collections.emptyList()),
-                                extractPermissions(pm.getAuthorities() != null ? Arrays.asList(pm.getAuthorities())
-                                        : Collections.emptyList())))
+            WrapperRes<RouteAclRes> wrapperRes = authServiceClient.getPermissionRouter();
+            if (wrapperRes.data().authorized() != null) {
+                return wrapperRes.data().authorized()
+                        .stream()
+                        .map(pm -> new AuthorizedRequest(
+                                pm.endpoint(),
+                                extractHttpMethods(pm.methods()),
+                                extractAuthorities(pm.authorities())))
                         .toList();
             }
         } catch (FeignException e) {
@@ -47,12 +47,11 @@ public class DistributedRouteAclResolver implements RouteAclResolver {
     @Override
     public List<PublicRequest> getPublicRequests() {
         try {
-            ResultVO<PermissionRouterResponseVO> resultVO = authServiceClient.getPermissionRouter();
-            if (resultVO.getData().getAnonymous() != null) {
-                List<RouterAnonymousVO> anonymousVOs = resultVO.getData().getAnonymous();
-                return anonymousVOs.stream()
-                        .map(pm -> new PublicRequest(pm.getEndpoint(), extractHttpMethods(
-                                pm.getMethods() != null ? Arrays.asList(pm.getMethods()) : Collections.emptyList())))
+            WrapperRes<RouteAclRes> wrapperRes = authServiceClient.getPermissionRouter();
+            if (wrapperRes.data().anonymous() != null) {
+                return wrapperRes.data().anonymous()
+                        .stream()
+                        .map(pm -> new PublicRequest(pm.endpoint(), extractHttpMethods(pm.methods())))
                         .toList();
             }
         } catch (FeignException e) {
@@ -64,13 +63,20 @@ public class DistributedRouteAclResolver implements RouteAclResolver {
         return Collections.emptyList();
     }
 
-    private Set<HttpMethod> extractHttpMethods(Collection<String> methods) {
-        return Optional.ofNullable(methods).map(Collection::stream)
-                .map(methodsStream -> methodsStream.map(String::toUpperCase).map(HttpMethod::valueOf))
-                .orElse(Stream.empty()).collect(Collectors.toSet());
+    private Set<HttpMethod> extractHttpMethods(String[] methods) {
+        return Optional.ofNullable(methods)
+                .map(Arrays::asList)
+                .orElse(Collections.emptyList())
+                .stream()
+                .map(String::toUpperCase)
+                .map(HttpMethod::valueOf)
+                .collect(Collectors.toSet());
     }
 
-    private Set<String> extractPermissions(Collection<String> permissions) {
-        return new HashSet<>(Optional.ofNullable(permissions).orElse(Collections.emptySet()));
+    private Set<String> extractAuthorities(String[] authorities) {
+        return Optional.ofNullable(authorities)
+                .stream()
+                .flatMap(Arrays::stream)
+                .collect(Collectors.toSet());
     }
 }

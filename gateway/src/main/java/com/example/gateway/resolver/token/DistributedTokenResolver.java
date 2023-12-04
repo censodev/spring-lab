@@ -2,8 +2,8 @@ package com.example.gateway.resolver.token;
 
 import com.example.gateway.dto.DefaultUserDetails;
 import com.example.gateway.service.AuthServiceClient;
-import com.example.gateway.service.payload.FeignExceptionResponse;
-import com.example.gateway.service.payload.UserDetailsResponse;
+import com.example.gateway.service.payload.ExceptionRes;
+import com.example.gateway.service.payload.UserDetailsRes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.FeignException;
 import lombok.SneakyThrows;
@@ -39,19 +39,19 @@ public class DistributedTokenResolver implements TokenResolver {
     @Override
     public UserDetails resolve(String token) throws TokenResolveException {
         try {
-            UserDetailsResponse res = authServiceClient.getUserDetails(token).getData();
-            var authorities = res.getPermissions().stream()
-                    .map(UserDetailsResponse.Permission::getCode)
+            UserDetailsRes res = authServiceClient.getUserDetails(token).data();
+            var authorities = res.permissions().stream()
+                    .map(UserDetailsRes.Permission::code)
                     .map(SimpleGrantedAuthority::new)
                     .toList();
-            return new DefaultUserDetails(res.getId(), res.getUsername(), res.getIsActive(), authorities);
+            return new DefaultUserDetails(res.id(), res.username(), res.isActive(), authorities);
         } catch (FeignException e) {
             log.error(e.getMessage());
             log.error("FeignException->contentUTF8: {}", e.contentUTF8());
             var msg = Optional.ofNullable(e.contentUTF8())
                     .filter(StringUtils::hasText)
-                    .map(content -> readValue(content, FeignExceptionResponse.class))
-                    .map(FeignExceptionResponse::getMessage)
+                    .map(content -> readValue(content, ExceptionRes.class))
+                    .map(ExceptionRes::message)
                     .orElse(e.getMessage());
             throw new TokenResolveException(msg, e);
         } catch (Exception e) {

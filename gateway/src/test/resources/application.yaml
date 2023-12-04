@@ -3,4 +3,4 @@ resolver:
     type: distributed
   route-acl:
     type: distributed
-    uri: "http://localhost:9999/rest/api/v1"
+    uri: "http://localhost:9999"
