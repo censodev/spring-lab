@@ -15,9 +15,9 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 
 public class AuthorizationManager implements ReactiveAuthorizationManager<ServerWebExchange> {
     private final RouteAclResolver routeAclResolver;
@@ -29,19 +29,24 @@ public class AuthorizationManager implements ReactiveAuthorizationManager<Server
     @Override
     public Mono<AuthorizationDecision> check(Mono<Authentication> authentication, ServerWebExchange exchange) {
         ReactiveAuthorizationManager<AuthorizationContext> permitAllAuthorizationManager = (auth, context) -> Mono.just(new AuthorizationDecision(true));
-        List<ServerWebExchangeMatcherEntry<ReactiveAuthorizationManager<AuthorizationContext>>> mappings = new ArrayList<>();
-        routeAclResolver.getPublicRequests().forEach(publicReq -> {
-            List<PathPatternParserServerWebExchangeMatcher> matchers = buildMatchers(publicReq.routePattern(), publicReq.methods());
-            matchers.forEach(matcher -> mappings.add(new ServerWebExchangeMatcherEntry<>(matcher, permitAllAuthorizationManager)));
-        });
-        routeAclResolver.getAuthorizedRequests().forEach(authReq -> {
-            var permissions = authReq.authorities().toArray(new String[0]);
-            ReactiveAuthorizationManager<AuthorizationContext> entry = permissions.length == 0
-                    ? permitAllAuthorizationManager
-                    : AuthorityReactiveAuthorizationManager.hasAnyAuthority(permissions);
-            List<PathPatternParserServerWebExchangeMatcher> matchers = buildMatchers(authReq.routePattern(), authReq.methods());
-            matchers.forEach(matcher -> mappings.add(new ServerWebExchangeMatcherEntry<>(matcher, entry)));
-        });
+        List<ServerWebExchangeMatcherEntry<ReactiveAuthorizationManager<AuthorizationContext>>> mappings = Stream
+                .concat(
+                        routeAclResolver.getPublicRequests()
+                                .stream()
+                                .flatMap(req -> buildMatchers(req.routePattern(), req.methods())
+                                        .stream()
+                                        .map(matcher -> new ServerWebExchangeMatcherEntry<>(matcher, permitAllAuthorizationManager))),
+                        routeAclResolver.getAuthorizedRequests().stream()
+                                .flatMap(req -> {
+                                    var permissions = req.authorities().toArray(new String[0]);
+                                    ReactiveAuthorizationManager<AuthorizationContext> entry = permissions.length == 0
+                                            ? permitAllAuthorizationManager
+                                            : AuthorityReactiveAuthorizationManager.hasAnyAuthority(permissions);
+                                    return buildMatchers(req.routePattern(), req.methods())
+                                            .stream()
+                                            .map(matcher -> new ServerWebExchangeMatcherEntry<>(matcher, entry));
+                                }))
+                .toList();
         return Flux.fromIterable(mappings)
                 .concatMap(mapping -> mapping.getMatcher()
                         .matches(exchange)
