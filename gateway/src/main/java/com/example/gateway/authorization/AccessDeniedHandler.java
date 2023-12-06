@@ -1,6 +1,6 @@
 package com.example.gateway.authorization;
 
-import com.example.gateway.dto.CommonResponse;
+import com.example.gateway.dto.MessageRes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +26,6 @@ public class AccessDeniedHandler implements ServerAccessDeniedHandler {
         exchange.getResponse().getHeaders().add("Content-Type", "application/json");
         return exchange.getResponse().writeWith(Mono.just(exchange.getResponse()
                 .bufferFactory()
-                .wrap(objectMapper.writeValueAsBytes(new CommonResponse("403 Forbidden")))));
+                .wrap(objectMapper.writeValueAsBytes(new MessageRes("403 Forbidden")))));
     }
 }

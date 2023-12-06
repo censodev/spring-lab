@@ -1,4 +1,4 @@
-package com.example.gateway.dto;
+package com.example.gateway.authentication;
 
 import lombok.Getter;
 import lombok.Setter;

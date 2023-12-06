@@ -1,6 +1,6 @@
 package com.example.gateway.resolver.token;
 
-import com.example.gateway.dto.DefaultUserDetails;
+import com.example.gateway.authentication.DefaultUserDetails;
 import com.example.gateway.service.AuthServiceClient;
 import com.example.gateway.service.payload.ExceptionRes;
 import com.example.gateway.service.payload.UserDetailsRes;

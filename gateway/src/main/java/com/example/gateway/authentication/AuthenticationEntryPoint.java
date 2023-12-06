@@ -1,6 +1,6 @@
 package com.example.gateway.authentication;
 
-import com.example.gateway.dto.CommonResponse;
+import com.example.gateway.dto.MessageRes;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +26,6 @@ public class AuthenticationEntryPoint implements ServerAuthenticationEntryPoint 
         exchange.getResponse().getHeaders().add("Content-Type", "application/json");
         return exchange.getResponse().writeWith(Mono.just(exchange.getResponse()
                 .bufferFactory()
-                .wrap(objectMapper.writeValueAsBytes(new CommonResponse("401 Unauthorized")))));
+                .wrap(objectMapper.writeValueAsBytes(new MessageRes("401 Unauthorized")))));
     }
 }
